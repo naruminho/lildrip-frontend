@@ -306,54 +306,55 @@ function seedRandom(seed) {
   };
 }
 
+// ─── HELPERS ────────────────────────────────────────────────
+function dataToCSV() {
+  if (!state.data) return null;
+  const headers = 'timestamp,rainfall_mm';
+  const rows = state.data.values.map(r => `${r.t},${r.v}`);
+  return new Blob([headers + '\n' + rows.join('\n')], { type: 'text/csv' });
+}
+
 // ─── CALIBRATE ──────────────────────────────────────────────
 btnCalib.addEventListener('click', async () => {
   if (!state.data) return notify('No data loaded');
   btnCalib.disabled = true; loaders.calib.hidden = false;
 
-  // Compute demo parameters from data statistics
-  const vals = state.data.values.map(v => v.v);
-  const nonZero = vals.filter(v => v > 0);
-  const meanIntensity = nonZero.length > 0
-    ? nonZero.reduce((a,b) => a+b, 0) / nonZero.length
-    : 0.1;
-  const events = countEvents(vals);
-  const totalHours = vals.length * state.data.interval / 60;
+  try {
+    const csvBlob = dataToCSV();
+    if (!csvBlob) throw new Error('No data to calibrate');
+    const formData = new FormData();
+    formData.append('arquivo', csvBlob, 'data.csv');
+    formData.append('time_column', 'timestamp');
+    formData.append('rainfall_column', 'rainfall_mm');
+    formData.append('interval_minutes', String(state.data.interval));
 
-  state.params = {
-    lambda: +((events / (totalHours / 24)) || 5).toFixed(1),
-    beta:   +(Math.max(1, Math.round(events / Math.max(1, Math.ceil(vals.length / 24)))) || 3).toFixed(1),
-    gamma:  +(1 / Math.max(1, vals.length * state.data.interval / events / 60) || 0.05).toFixed(3),
-    eta:    +(0.1).toFixed(3),
-    mu:     +(meanIntensity || 0.1).toFixed(3),
-  };
+    const resp = await fetch(API + '/calibrar', { method: 'POST', body: formData });
+    if (!resp.ok) throw new Error(await resp.text());
+    state.params = await resp.json();
 
-  // Update UI
-  Object.keys(state.params).forEach(id => {
-    const slider = document.getElementById('param-' + id);
-    const val    = document.getElementById('val-' + id);
-    slider.value = state.params[id];
-    val.textContent = state.params[id];
-  });
+    // Update UI sliders
+    Object.keys(state.params).forEach(id => {
+      const slider = document.getElementById('param-' + id);
+      const val    = document.getElementById('val-' + id);
+      const v = state.params[id];
+      slider.value = v;
+      val.textContent = typeof v === 'number' ? v.toFixed(v < 0.1 ? 3 : 1) : v;
+    });
 
-  btnCalib.disabled = false; loaders.calib.hidden = true;
-  notify('✅ Parameters calibrated from data');
-  btnDisagg.disabled = false;
-});
-
-function countEvents(vals) {
-  let count = 0, inEvent = false, dry = 0;
-  for (const v of vals) {
-    if (v > 0) {
-      if (!inEvent) { count++; inEvent = true; }
-      dry = 0;
-    } else {
-      dry++;
-      if (dry >= 3 && inEvent) inEvent = false;
-    }
+    notify('✅ Parameters calibrated from data via API');
+    btnDisagg.disabled = false;
+  } catch (e) {
+    notify('❌ Calibration failed: ' + e.message);
+    // Fallback: use slider defaults
+    state.params = {};
+    ['lambda','beta','gamma','eta','mu'].forEach(id => {
+      state.params[id] = parseFloat(document.getElementById('param-' + id).value);
+    });
+    btnDisagg.disabled = false;
+  } finally {
+    btnCalib.disabled = false; loaders.calib.hidden = true;
   }
-  return count || 1;
-}
+});
 
 // ─── MANUAL PARAMS BUTTON ───────────────────────────────────
 btnManual.addEventListener('click', () => {
@@ -378,66 +379,82 @@ btnDisagg.addEventListener('click', async () => {
   });
 
   btnDisagg.disabled = true; loaders.disagg.hidden = false;
-
   const targetMin = parseInt(disaggInt.value) || 10;
-  const seed = disaggSeed.value ? parseInt(disaggSeed.value) : null;
-  const coarseInterval = state.data.interval;
   const coarseData = state.data.values;
+  const coarseInterval = state.data.interval;
 
-  // Simple client-side disaggregation (Bartlett-Lewis simulation)
-  const disaggData = [];
-  const rng = seedRandom(seed || Date.now());
+  try {
+    const csvBlob = dataToCSV();
+    if (!csvBlob) throw new Error('No data');
+    const formData = new FormData();
+    formData.append('arquivo', csvBlob, 'coarse.csv');
+    formData.append('params', JSON.stringify(state.params));
+    formData.append('time_column', 'timestamp');
+    formData.append('rainfall_column', 'rainfall_mm');
+    formData.append('disagg_interval_minutes', String(targetMin));
 
-  for (const row of coarseData) {
-    const total = row.v;
-    const steps = coarseInterval / targetMin;
-    if (total === 0) {
-      for (let i = 0; i < steps; i++) {
-        disaggData.push({ t: row.t, v: 0 });
-      }
-    } else {
-      // Simulate pulses
-      const p = state.params;
-      const nStorms = Math.max(1, Math.round(poisson(rng, p.lambda / 24 / 60 * targetMin * steps)));
-      let fine = new Array(Math.ceil(steps)).fill(0);
-      for (let s = 0; s < nStorms; s++) {
-        const nPulses = Math.max(1, Math.round(poisson(rng, p.beta)));
-        for (let pp = 0; pp < nPulses; pp++) {
-          const start = Math.floor(rng.next() * fine.length);
-          const dur = Math.max(1, Math.round(exponential(rng, 1 / p.eta) / targetMin));
-          const intens = exponential(rng, p.mu);
-          for (let i = start; i < Math.min(start + dur, fine.length); i++) {
-            fine[i] += intens;
-          }
-        }
-      }
-      // Scale to match observed total
-      const simTotal = fine.reduce((a,b) => a+b, 0);
-      if (simTotal > 0) {
-        fine = fine.map(f => f * total / simTotal);
-      } else {
-        fine = fine.map(() => total / fine.length);
-      }
-      const baseDate = new Date(row.t);
-      for (let i = 0; i < fine.length; i++) {
-        const d = new Date(baseDate.getTime() + i * targetMin * 60000);
-        disaggData.push({
-          t: d.toISOString().replace('T', ' ').slice(0, 19),
-          v: +fine[i].toFixed(4),
-        });
+    const resp = await fetch(API + '/desagregar', { method: 'POST', body: formData });
+    if (!resp.ok) throw new Error(await resp.text());
+    const csvText = await resp.text();
+
+    // Parse returned CSV
+    const lines = csvText.trim().split('\n').filter(l => l.trim());
+    const parsed = [];
+    for (let i = 1; i < lines.length; i++) {
+      const parts = lines[i].split(',');
+      if (parts.length >= 2) {
+        const t = parts[0].trim();
+        const v = parseFloat(parts[1]);
+        if (t && !isNaN(v)) parsed.push({ t, v });
       }
     }
+    state.disagg = parsed;
+    results.hidden = false;
+    results.scrollIntoView({ behavior: 'smooth' });
+    drawChart(coarseData, parsed, targetMin);
+    updateStats(coarseData, parsed);
+    notify('✅ Disaggregation complete via API!');
+  } catch (e) {
+    notify('❌ API disaggregation failed, using local fallback: ' + e.message);
+    // Client-side fallback
+    const disaggData = [];
+    const rng = seedRandom(Date.now());
+    for (const row of coarseData) {
+      const total = row.v;
+      const steps = coarseInterval / targetMin;
+      if (total === 0) {
+        for (let i = 0; i < steps; i++) disaggData.push({ t: row.t, v: 0 });
+      } else {
+        const p = state.params;
+        const nStorms = Math.max(1, Math.round(poisson(rng, p.lambda / 24 / 60 * targetMin * steps)));
+        let fine = new Array(Math.ceil(steps)).fill(0);
+        for (let s = 0; s < nStorms; s++) {
+          const nPulses = Math.max(1, Math.round(poisson(rng, p.beta)));
+          for (let pp = 0; pp < nPulses; pp++) {
+            const start = Math.floor(rng.next() * fine.length);
+            const dur = Math.max(1, Math.round(exponential(rng, 1 / p.eta) / targetMin));
+            const intens = exponential(rng, p.mu);
+            for (let i = start; i < Math.min(start + dur, fine.length); i++) fine[i] += intens;
+          }
+        }
+        const simTotal = fine.reduce((a,b) => a+b, 0);
+        if (simTotal > 0) fine = fine.map(f => f * total / simTotal);
+        else fine = fine.map(() => total / fine.length);
+        const baseDate = new Date(row.t);
+        for (let i = 0; i < fine.length; i++) {
+          const d = new Date(baseDate.getTime() + i * targetMin * 60000);
+          disaggData.push({ t: d.toISOString().replace('T', ' ').slice(0, 19), v: +fine[i].toFixed(4) });
+        }
+      }
+    }
+    state.disagg = disaggData;
+    results.hidden = false;
+    results.scrollIntoView({ behavior: 'smooth' });
+    drawChart(coarseData, disaggData, targetMin);
+    updateStats(coarseData, disaggData);
+  } finally {
+    btnDisagg.disabled = false; loaders.disagg.hidden = true;
   }
-
-  state.disagg = disaggData;
-  btnDisagg.disabled = false; loaders.disagg.hidden = true;
-
-  // Show results
-  results.hidden = false;
-  results.scrollIntoView({ behavior: 'smooth' });
-  drawChart(coarseData, disaggData, targetMin);
-  updateStats(coarseData, disaggData);
-  notify('✅ Disaggregation complete!');
 });
 
 function poisson(rng, lambda) {

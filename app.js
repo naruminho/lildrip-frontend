@@ -579,16 +579,19 @@ function drawChart(orig, disagg, interval) {
           },
           {
             label: `Original (${coarseInt} min)`,
+            type: 'line',
             data: disaggLabels.map(label => {
-              const match = orig.find(r => r.t.slice(0, 16) === label);
+              const hour = label.slice(0, 14) + '00';
+              const match = orig.find(r => r.t.slice(0, 16) === label || r.t.slice(0, 14) + '00' === hour);
               return match ? match.v : null;
             }),
-            backgroundColor: 'rgba(234, 102, 138, 0.4)',
-            borderColor: 'rgba(234, 102, 138, 0.7)',
-            borderWidth: 1,
-            borderRadius: 2,
-            barPercentage: 0.9,
-            categoryPercentage: 1.0,
+            borderColor: 'rgba(234, 102, 138, 0.9)',
+            backgroundColor: 'rgba(234, 102, 138, 0.06)',
+            borderWidth: 2,
+            pointRadius: 0,
+            stepped: 'before',
+            fill: true,
+            tension: 0,
             order: 1,
           },
         ],

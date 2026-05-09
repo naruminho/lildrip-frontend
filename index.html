@@ -79,20 +79,16 @@
             <input type="number" id="intervalMin" value="60" min="1" />
           </label>
         </div>
-        <div class="preview" id="preview" hidden>
-          <h4>Preview</h4>
-          <div id="previewTable"></div>
-        </div>
-        <div class="chart-wrap" id="inputChartWrap" hidden>
-          <canvas id="inputChart"></canvas>
-        </div>
       </div>
 
       <!-- Manual pane -->
       <div class="tab-pane" id="pane-manual">
-        <textarea id="manualData" rows="6" placeholder="Paste your CSV here…
-  timestamp,rainfall_mm
-  2023-01-01 00:00,0.5"timestamp,rainfall_mm#10;timestamp,rainfall_mm&#10;2023-01-01 00:00,0.5&#10;2023-01-01 01:00,1.2&#10;..."></textarea>
+        <textarea id="manualData" rows="6" placeholder="Paste your CSV here...
+
+timestamp,rainfall_mm
+2023-01-01 00:00,0.5
+2023-01-01 01:00,1.2
+..."></textarea>
         <div class="field-row">
           <label>Interval (min)
             <input type="number" id="manualInterval" value="60" min="1" />
@@ -105,6 +101,15 @@
         <p class="demo-desc">Generate a synthetic rainfall series to test the tool end-to-end — no real data needed.</p>
         <button class="btn btn-glow" id="btnDemo">🎲 Generate demo data</button>
         <div class="loader" id="demoLoader" hidden></div>
+      </div>
+
+      <!-- Shared preview (visible from any tab) -->
+      <div class="preview" id="preview" hidden>
+        <h4>Preview</h4>
+        <div id="previewTable"></div>
+      </div>
+      <div class="chart-wrap" id="inputChartWrap" hidden>
+        <canvas id="inputChart"></canvas>
       </div>
     </section>
 

@@ -347,59 +347,90 @@ function exponential(rng, scale) {
 function drawChart(orig, disagg, interval) {
   if (state.chart) { state.chart.destroy(); state.chart = null; }
 
-  // Downsample for display (show coarse + fine)
-  const origLabels = orig.map(r => r.t.slice(0, 16));
-  const disaggLabels = disagg.map(r => r.t.slice(0, 16));
-  const origVals = orig.map(r => r.v);
+  if (typeof Chart === 'undefined') {
+    return notify('❌ Chart.js failed to load. Check your internet connection.');
+  }
 
-  state.chart = new Chart(chartCanvas, {
-    type: 'bar',
-    data: {
-      labels: disaggLabels,
-      datasets: [
-        {
-          label: `Disaggregated (${interval} min)`,
-          data: disagg.map(r => r.v),
-          backgroundColor: 'rgba(102, 126, 234, 0.5)',
-          borderColor: 'rgba(102, 126, 234, 0.8)',
-          borderWidth: 1,
-          borderRadius: 2,
-          barPercentage: 0.9,
-          categoryPercentage: 1.0,
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: {
-          labels: { color: '#c8c0e8', font: { size: 11, family: 'Inter' } },
-        },
-      },
-      scales: {
-        x: {
-          ticks: {
-            color: '#5a5280', font: { size: 9, family: 'Inter' },
-            maxTicksLimit: 12,
-            maxRotation: 45,
-          },
-          grid: { color: 'rgba(255,255,255,.04)' },
-        },
-        y: {
-          beginAtZero: true,
-          ticks: { color: '#5a5280', font: { size: 9, family: 'Inter' } },
-          grid: { color: 'rgba(255,255,255,.04)' },
-          title: {
-            display: true,
-            text: 'Rainfall (mm)',
-            color: '#5a5280',
-            font: { size: 10, family: 'Inter' },
-          },
-        },
-      },
-    },
+  const fineInt = interval;
+  const coarseInt = state.data.interval;
+
+  // Build coarse bars aligned to their time windows
+  const coarseBars = [];
+  const coarseLabelSet = new Set();
+  orig.forEach(r => {
+    const label = r.t.slice(0, 16);
+    coarseLabelSet.add(label);
   });
+
+  const disaggLabels = disagg.map(r => r.t.slice(0, 16));
+
+  try {
+    state.chart = new Chart(chartCanvas, {
+      type: 'bar',
+      data: {
+        labels: disaggLabels,
+        datasets: [
+          {
+            label: `Disaggregated (${fineInt} min)`,
+            data: disagg.map(r => r.v),
+            backgroundColor: 'rgba(102, 126, 234, 0.5)',
+            borderColor: 'rgba(102, 126, 234, 0.8)',
+            borderWidth: 1,
+            borderRadius: 2,
+            barPercentage: 0.9,
+            categoryPercentage: 1.0,
+            order: 2,
+          },
+          {
+            label: `Original (${coarseInt} min)`,
+            data: disaggLabels.map(label => {
+              const match = orig.find(r => r.t.slice(0, 16) === label);
+              return match ? match.v : null;
+            }),
+            backgroundColor: 'rgba(234, 102, 138, 0.4)',
+            borderColor: 'rgba(234, 102, 138, 0.7)',
+            borderWidth: 1,
+            borderRadius: 2,
+            barPercentage: 0.9,
+            categoryPercentage: 1.0,
+            order: 1,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            labels: { color: '#c8c0e8', font: { size: 11, family: 'Inter' } },
+          },
+        },
+        scales: {
+          x: {
+            ticks: {
+              color: '#5a5280', font: { size: 9, family: 'Inter' },
+              maxTicksLimit: 15,
+              maxRotation: 45,
+            },
+            grid: { color: 'rgba(255,255,255,.04)' },
+          },
+          y: {
+            beginAtZero: true,
+            ticks: { color: '#5a5280', font: { size: 9, family: 'Inter' } },
+            grid: { color: 'rgba(255,255,255,.04)' },
+            title: {
+              display: true,
+              text: 'Rainfall (mm)',
+              color: '#5a5280',
+              font: { size: 10, family: 'Inter' },
+            },
+          },
+        },
+      },
+    });
+  } catch (e) {
+    notify('❌ Chart error: ' + e.message);
+  }
 }
 
 function updateStats(orig, disagg) {

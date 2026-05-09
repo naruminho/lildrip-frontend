@@ -136,13 +136,23 @@ function showPreview(rows) {
 manualArea.addEventListener('input', () => {
   const text = manualArea.value.trim();
   if (text) {
-    parseAndSetData(text, parseInt(manualInt.value));
+    // Infer interval from the first two timestamps
+    const lines = text.split('\n').filter(l => l.trim());
+    let inferredInterval = 60;
+    if (lines.length >= 3) {
+      const t1 = lines[1].split(',')[0]?.trim();
+      const t2 = lines[2].split(',')[0]?.trim();
+      if (t1 && t2) {
+        const d1 = new Date(t1);
+        const d2 = new Date(t2);
+        if (!isNaN(d1) && !isNaN(d2)) {
+          inferredInterval = Math.round((d2 - d1) / 60000) || 60;
+        }
+      }
+    }
+    parseAndSetData(text, inferredInterval);
     state.csvFilename = 'typed-data';
   }
-});
-
-manualInt.addEventListener('change', () => {
-  if (state.data) state.data.interval = parseInt(manualInt.value);
 });
 
 // ─── GENERATE DEMO ──────────────────────────────────────────

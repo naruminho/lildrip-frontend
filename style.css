@@ -71,6 +71,16 @@ a:hover { color: #8a80ff; }
   position: relative; z-index: 1; max-width: 1000px; margin: 0 auto; padding: 0 1.5rem 3rem;
 }
 
+.side-by-side {
+  display: flex; gap: 1.25rem;
+}
+.side-by-side .card {
+  flex: 1; min-width: 0;
+}
+@media (max-width: 700px) {
+  .side-by-side { flex-direction: column; }
+}
+
 /* ── CARDS ────────────────────────────────────────────────── */
 .card {
   background: var(--surface); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);

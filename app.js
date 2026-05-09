@@ -196,8 +196,8 @@ function parseAndSetData(text, intervalMin) {
   const tc = timeCol.value.trim();
   const rc = rainCol.value.trim();
 
-  const tIdx = headers.indexOf(tc);
-  const rIdx = headers.indexOf(rc);
+  let tIdx = headers.indexOf(tc);
+  let rIdx = headers.indexOf(rc);
   // Auto-detect columns if selects are empty (e.g. Demo or Manual tab)
   if (tIdx < 0 || rIdx < 0) {
     const timeKw = ['time','date','timestamp','data','hora'];

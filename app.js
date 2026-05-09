@@ -198,8 +198,18 @@ function parseAndSetData(text, intervalMin) {
 
   const tIdx = headers.indexOf(tc);
   const rIdx = headers.indexOf(rc);
-  if (tIdx < 0) return notify(`Column "${tc}" not found`);
-  if (rIdx < 0) return notify(`Column "${rc}" not found`);
+  // Auto-detect columns if selects are empty (e.g. Demo or Manual tab)
+  if (tIdx < 0 || rIdx < 0) {
+    const timeKw = ['time','date','timestamp','data','hora'];
+    const rainKw = ['rain','chuva','precip','mm','precipitation','rainfall'];
+    headers.forEach((h, i) => {
+      const hl = h.toLowerCase();
+      if (timeKw.some(k => hl.includes(k))) { tIdx = i; }
+      if (rainKw.some(k => hl.includes(k))) { rIdx = i; }
+    });
+    if (tIdx < 0) tIdx = 0;
+    if (rIdx < 0) rIdx = Math.min(1, headers.length - 1);
+  }
 
   const values = [];
   for (let i = 1; i < lines.length; i++) {

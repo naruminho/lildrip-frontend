@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -45,7 +46,7 @@
         <button class="tab active" data-tab="upload">
           <span class="tab-icon">📁</span>
           <span class="tab-label">Upload CSV</span>
-          <span class="tab-desc">From your computer</span>
+          <span class="tab-desc">CSV or Excel (.xlsx)</span>
         </button>
         <button class="tab" data-tab="manual">
           <span class="tab-icon">📋</span>
@@ -64,8 +65,8 @@
         <div class="drop-zone" id="dropZone">
           <div class="drop-icon">📄</div>
           <p>Drag & drop your CSV here</p>
-          <p class="drop-sub">or click to browse</p>
-          <input type="file" id="fileInput" accept=".csv" hidden />
+          <p class="drop-sub">or click to browse (.csv, .xlsx)</p>
+          <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" hidden />
         </div>
         <div class="field-row">
           <label>Time column

@@ -90,9 +90,38 @@ fileInput.addEventListener('change', e => {
 });
 
 async function loadCSV(file) {
-  const text = await file.text();
+  const name = file.name.toLowerCase();
   state.csvFilename = file.name;
-  parseAndSetData(text, parseInt(interval.value));
+
+  if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
+    // Parse Excel with SheetJS
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data, { type: 'array' });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const csv = XLSX.utils.sheet_to_csv(sheet);
+      // Infer interval from timestamps
+      const lines = csv.trim().split('\n');
+      let inferredInterval = parseInt(interval.value) || 60;
+      if (lines.length >= 3) {
+        const t1 = lines[1].split(',')[0]?.trim();
+        const t2 = lines[2].split(',')[0]?.trim();
+        if (t1 && t2) {
+          const d1 = new Date(t1);
+          const d2 = new Date(t2);
+          if (!isNaN(d1) && !isNaN(d2)) {
+            inferredInterval = Math.round((d2 - d1) / 60000) || 60;
+          }
+        }
+      }
+      parseAndSetData(csv, inferredInterval);
+    } catch (e) {
+      notify('❌ Failed to parse Excel file: ' + e.message);
+    }
+  } else {
+    const text = await file.text();
+    parseAndSetData(text, parseInt(interval.value));
+  }
 }
 
 function parseAndSetData(text, intervalMin) {

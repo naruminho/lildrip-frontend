@@ -163,7 +163,7 @@ function populateColumnSelectors(headers, rawCsv) {
     const ts2 = new Date(values[1]?.t);
     const inferredInterval = (!isNaN(ts1) && !isNaN(ts2)) ? Math.round((ts2 - ts1) / 60000) || 60 : 60;
     interval.value = inferredInterval;
-    showPreview(values.slice(0, 10));
+    showPreview(values.slice(0, 5));
     state.data = { values, interval: inferredInterval };
     btnCalib.disabled = false;
     drawInputChart(values, inferredInterval);
@@ -183,7 +183,7 @@ function reparseFromRaw() {
   const ts2 = new Date(values[1]?.t);
   const inferredInterval = (!isNaN(ts1) && !isNaN(ts2)) ? Math.round((ts2 - ts1) / 60000) || 60 : 60;
   interval.value = inferredInterval;
-  showPreview(values.slice(0, 10));
+  showPreview(values.slice(0, 5));
   state.data = { values, interval: inferredInterval };
   btnCalib.disabled = false;
   drawInputChart(values, inferredInterval);
@@ -211,20 +211,23 @@ function parseAndSetData(text, intervalMin) {
 
   state.data = { values, interval: intervalMin };
   btnCalib.disabled = false;
-  showPreview(values.slice(0, 10));
+  showPreview(values.slice(0, 5));
   drawInputChart(values, intervalMin);
   notify(`Loaded ${values.length} data points from ${state.csvFilename || 'data'}`);
 }
 
 function showPreview(rows) {
   preview.hidden = false;
+  const total = state.data ? state.data.values.length : 0;
+  const more = total > rows.length ? ` <span class="more-hint">… and ${total - rows.length} more</span>` : '';
   previewTbl.innerHTML = `
     <table>
-      <thead><tr><th>${timeCol.value}</th><th>${rainCol.value}</th></tr></thead>
+      <thead><tr><th>Timestamp</th><th>Rainfall (mm)</th></tr></thead>
       <tbody>
         ${rows.map(r => `<tr><td>${r.t}</td><td>${r.v.toFixed(2)}</td></tr>`).join('')}
       </tbody>
-    </table>`;
+    </table>
+    <p class="row-count">${rows.length} of ${total} rows${more}</p>`;
 }
 
 // ─── MANUAL INPUT ───────────────────────────────────────────

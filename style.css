@@ -184,6 +184,8 @@ input[type="range"]::-webkit-slider-thumb {
 /* ── PREVIEW ──────────────────────────────────────────────── */
 .preview { margin-top: 1rem; }
 .preview h4 { font-size: .78rem; color: var(--text-dim); margin-bottom: .5rem; text-transform: uppercase; letter-spacing: 1px; }
+.row-count { font-size: .7rem; color: var(--text-dim); margin-top: .4rem; }
+.more-hint { color: var(--accent); }
 .preview table { width: 100%; font-size: .72rem; border-collapse: collapse; }
 .preview th, .preview td { padding: .35rem .5rem; border-bottom: 1px solid var(--border); text-align: left; }
 .preview th { color: var(--text-dim); font-weight: 500; }

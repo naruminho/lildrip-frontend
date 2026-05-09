@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>lildrip — Rainfall Disaggregator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ═══ BACKGROUND ORBS ═══ -->
+  <div class="orbs">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+
+  <!-- ═══ HERO ═══ -->
+  <header class="hero">
+    <div class="hero-icon">☁️</div>
+    <h1>lildrip</h1>
+    <p class="subtitle">Bartlett-Lewis Stochastic Rainfall Disaggregator</p>
+    <p class="tagline">
+      Upload coarse rainfall data, calibrate the model, and generate
+      fine-resolution series — all in your browser.
+    </p>
+  </header>
+
+  <!-- ═══ MAIN ═══ -->
+  <main class="container">
+
+    <!-- ─── STEP 1: INPUT DATA ─── -->
+    <section class="card" id="step-input">
+      <div class="card-header">
+        <span class="step-badge">1</span>
+        <h2>Input Data</h2>
+      </div>
+
+      <!-- Source tabs -->
+      <div class="tabs">
+        <button class="tab active" data-tab="upload">📁 Upload CSV</button>
+        <button class="tab" data-tab="manual">⌨️ Type</button>
+        <button class="tab" data-tab="demo">🎲 Demo</button>
+      </div>
+
+      <!-- Upload pane -->
+      <div class="tab-pane active" id="pane-upload">
+        <div class="drop-zone" id="dropZone">
+          <div class="drop-icon">📄</div>
+          <p>Drag & drop your CSV here</p>
+          <p class="drop-sub">or click to browse</p>
+          <input type="file" id="fileInput" accept=".csv" hidden />
+        </div>
+        <div class="field-row">
+          <label>Time column
+            <input type="text" id="timeCol" value="timestamp" />
+          </label>
+          <label>Rainfall column
+            <input type="text" id="rainCol" value="rainfall_mm" />
+          </label>
+          <label>Interval (min)
+            <input type="number" id="intervalMin" value="10" min="1" />
+          </label>
+        </div>
+        <div class="preview" id="preview" hidden>
+          <h4>Preview</h4>
+          <div id="previewTable"></div>
+        </div>
+      </div>
+
+      <!-- Manual pane -->
+      <div class="tab-pane" id="pane-manual">
+        <textarea id="manualData" rows="6" placeholder="timestamp,rainfall_mm&#10;2023-01-01 00:00,0.5&#10;2023-01-01 01:00,1.2&#10;..."></textarea>
+        <div class="field-row">
+          <label>Interval (min)
+            <input type="number" id="manualInterval" value="60" min="1" />
+          </label>
+        </div>
+      </div>
+
+      <!-- Demo pane -->
+      <div class="tab-pane" id="pane-demo">
+        <p class="demo-desc">Generate a synthetic rainfall series to test the tool end-to-end — no real data needed.</p>
+        <button class="btn btn-glow" id="btnDemo">🎲 Generate demo data</button>
+        <div class="loader" id="demoLoader" hidden></div>
+      </div>
+    </section>
+
+    <!-- ─── STEP 2: CALIBRATE ─── -->
+    <section class="card" id="step-calibrate">
+      <div class="card-header">
+        <span class="step-badge">2</span>
+        <h2>Calibrate Model</h2>
+      </div>
+      <div class="calibrate-actions">
+        <button class="btn btn-primary" id="btnCalibrate" disabled>🔬 Auto-calibrate from data</button>
+        <span class="or">or</span>
+        <button class="btn btn-ghost" id="btnManualParams">✏️ Enter parameters manually</button>
+      </div>
+
+      <!-- Parameter sliders -->
+      <div class="params" id="params">
+        <div class="param">
+          <div class="param-header">
+            <span class="param-symbol">λ (lambda)</span>
+            <span class="param-desc">Storm frequency</span>
+            <span class="param-val" id="val-lambda">17.5</span>
+          </div>
+          <input type="range" id="param-lambda" min="0" max="50" step="0.1" value="17.5" />
+        </div>
+        <div class="param">
+          <div class="param-header">
+            <span class="param-symbol">β (beta)</span>
+            <span class="param-desc">Pulses per storm</span>
+            <span class="param-val" id="val-beta">5.0</span>
+          </div>
+          <input type="range" id="param-beta" min="0" max="20" step="0.1" value="5.0" />
+        </div>
+        <div class="param">
+          <div class="param-header">
+            <span class="param-symbol">γ (gamma)</span>
+            <span class="param-desc">Storm termination rate</span>
+            <span class="param-val" id="val-gamma">0.05</span>
+          </div>
+          <input type="range" id="param-gamma" min="0" max="0.5" step="0.001" value="0.05" />
+        </div>
+        <div class="param">
+          <div class="param-header">
+            <span class="param-symbol">η (eta)</span>
+            <span class="param-desc">Pulse termination rate</span>
+            <span class="param-val" id="val-eta">0.10</span>
+          </div>
+          <input type="range" id="param-eta" min="0" max="0.5" step="0.001" value="0.10" />
+        </div>
+        <div class="param">
+          <div class="param-header">
+            <span class="param-symbol">μ (mu)</span>
+            <span class="param-desc">Pulse intensity (mm)</span>
+            <span class="param-val" id="val-mu">0.12</span>
+          </div>
+          <input type="range" id="param-mu" min="0" max="1" step="0.001" value="0.12" />
+        </div>
+      </div>
+
+      <div class="loader" id="calibrateLoader" hidden></div>
+    </section>
+
+    <!-- ─── STEP 3: DISAGGREGATE ─── -->
+    <section class="card" id="step-disagg">
+      <div class="card-header">
+        <span class="step-badge">3</span>
+        <h2>Disaggregate</h2>
+      </div>
+      <p class="step-desc">Choose the target resolution and run the disaggregation.</p>
+      <div class="field-row">
+        <label>Target interval (min)
+          <input type="number" id="disaggInterval" value="10" min="1" />
+        </label>
+        <label>Seed (optional)
+          <input type="number" id="disaggSeed" placeholder="random" />
+        </label>
+      </div>
+      <button class="btn btn-primary btn-glow" id="btnDisaggregate" disabled>⚡ Disaggregate</button>
+      <div class="loader" id="disaggLoader" hidden></div>
+    </section>
+
+    <!-- ─── STEP 4: RESULTS ─── -->
+    <section class="card" id="step-results" hidden>
+      <div class="card-header">
+        <span class="step-badge">4</span>
+        <h2>Results</h2>
+      </div>
+
+      <div class="chart-wrap">
+        <canvas id="chart"></canvas>
+      </div>
+
+      <div class="stats-row" id="statsRow">
+        <div class="stat">
+          <span class="stat-num" id="statOriginalTotal">—</span>
+          <span class="stat-label">Original total (mm)</span>
+        </div>
+        <div class="stat">
+          <span class="stat-num" id="statDisaggTotal">—</span>
+          <span class="stat-label">Disaggregated total (mm)</span>
+        </div>
+        <div class="stat">
+          <span class="stat-num" id="statOriginalPts">—</span>
+          <span class="stat-label">Original points</span>
+        </div>
+        <div class="stat">
+          <span class="stat-num" id="statDisaggPts">—</span>
+          <span class="stat-label">Disaggregated points</span>
+        </div>
+      </div>
+
+      <div class="result-actions">
+        <a class="btn btn-primary" id="btnDownload">📥 Download CSV</a>
+        <button class="btn btn-ghost" id="btnCopy">📋 Copy stats</button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ═══ FOOTER ═══ -->
+  <footer class="footer">
+    <p>lildrip v0.1.0 · <a href="https://github.com/naruminho/lildrip" target="_blank">GitHub</a> ·
+    <a href="https://pypi.org/project/lildrip/" target="_blank">PyPI</a></p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

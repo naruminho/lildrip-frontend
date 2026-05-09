@@ -581,10 +581,10 @@ function drawChart(orig, disagg, interval) {
             label: `Original (${coarseInt} min)`,
             type: 'line',
             data: disaggLabels.map(label => {
-              // Match original by hour, normalize to per-interval value
+              // Match original by hour, handling both T and space separators
               const hour = label.slice(0, 13).replace('T', ' ');
               const match = orig.find(r => r.t.slice(0, 13).replace('T', ' ') === hour);
-              return match ? match.v / (coarseInt / fineInt) : null;
+              return match ? match.v : null;
             }),
             borderColor: 'rgba(234, 102, 138, 0.9)',
             backgroundColor: 'rgba(234, 102, 138, 0.06)',

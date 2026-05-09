@@ -34,6 +34,8 @@ const preview    = $('#preview');
 const previewTbl = $('#previewTable');
 const paramsDiv  = $('#params');
 const chartCanvas= $('#chart');
+const inputChartCanvas = $('#inputChart');
+const inputChartWrap = $('#inputChartWrap');
 const results    = $('#step-results');
 const disaggInt  = $('#disaggInterval');
 const disaggSeed = $('#disaggSeed');
@@ -115,6 +117,7 @@ function parseAndSetData(text, intervalMin) {
   state.data = { values, interval: intervalMin };
   btnCalib.disabled = false;
   showPreview(values.slice(0, 10));
+  drawInputChart(values, intervalMin);
   notify(`Loaded ${values.length} data points from ${state.csvFilename || 'data'}`);
 }
 
@@ -341,6 +344,64 @@ function poisson(rng, lambda) {
 
 function exponential(rng, scale) {
   return -Math.log(1 - rng.next()) * scale;
+}
+
+// ─── INPUT CHART ────────────────────────────────────────────
+function drawInputChart(values, intervalMin) {
+  if (state.inputChart) { state.inputChart.destroy(); state.inputChart = null; }
+  if (typeof Chart === 'undefined') return;
+
+  inputChartWrap.hidden = false;
+  const labels = values.map(r => r.t.slice(0, 16));
+  const data = values.map(r => r.v);
+
+  try {
+    state.inputChart = new Chart(inputChartCanvas, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: `Rainfall (${intervalMin} min intervals)`,
+          data,
+          backgroundColor: 'rgba(102, 126, 234, 0.5)',
+          borderColor: 'rgba(102, 126, 234, 0.7)',
+          borderWidth: 1,
+          borderRadius: 2,
+        }],
+      },
+      options: {
+        responsive: true,
+        animation: { duration: 400 },
+        plugins: {
+          legend: {
+            labels: { color: '#c8c0e8', font: { size: 10, family: 'Inter' } },
+          },
+        },
+        scales: {
+          x: {
+            ticks: {
+              color: '#5a5280', font: { size: 8, family: 'Inter' },
+              maxTicksLimit: 10, maxRotation: 45,
+            },
+            grid: { color: 'rgba(255,255,255,.04)' },
+          },
+          y: {
+            beginAtZero: true,
+            ticks: { color: '#5a5280', font: { size: 9, family: 'Inter' } },
+            grid: { color: 'rgba(255,255,255,.04)' },
+            title: {
+              display: true, text: 'Rainfall (mm)',
+              color: '#5a5280', font: { size: 10, family: 'Inter' },
+            },
+          },
+        },
+      },
+    });
+    // Scroll to the chart
+    inputChartWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } catch (e) {
+    notify('❌ Chart error: ' + e.message);
+  }
 }
 
 // ─── CHART ──────────────────────────────────────────────────

@@ -68,15 +68,15 @@
           <p class="drop-sub">or click to browse (.csv, .xlsx)</p>
           <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" hidden />
         </div>
-        <div class="field-row">
+        <div class="field-row" id="colSelector" hidden>
           <label>Time column
-            <input type="text" id="timeCol" value="timestamp" />
+            <select id="timeCol"></select>
           </label>
           <label>Rainfall column
-            <input type="text" id="rainCol" value="rainfall_mm" />
+            <select id="rainCol"></select>
           </label>
           <label>Interval (min)
-            <input type="number" id="intervalMin" value="10" min="1" />
+            <input type="number" id="intervalMin" value="60" min="1" />
           </label>
         </div>
         <div class="preview" id="preview" hidden>

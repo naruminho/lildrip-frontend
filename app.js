@@ -21,6 +21,7 @@ const dropZone   = $('#dropZone');
 const fileInput  = $('#fileInput');
 const timeCol    = $('#timeCol');
 const rainCol    = $('#rainCol');
+const colSelector= $('#colSelector');
 const interval   = $('#intervalMin');
 const manualArea = $('#manualData');
 const manualInt  = $('#manualInterval');
@@ -122,6 +123,71 @@ async function loadCSV(file) {
     const text = await file.text();
     parseAndSetData(text, parseInt(interval.value));
   }
+}
+
+function populateColumnSelectors(headers, rawCsv) {
+  const timeSel = timeCol;
+  const rainSel = rainCol;
+  timeSel.innerHTML = '';
+  rainSel.innerHTML = '';
+  headers.forEach(h => {
+    const opt1 = document.createElement('option');
+    opt1.value = h; opt1.textContent = h;
+    if (h.toLowerCase().includes('time') || h.toLowerCase().includes('date') || h.toLowerCase().includes('timestamp') || h === headers[0]) {
+      opt1.selected = true;
+    }
+    timeSel.appendChild(opt1);
+    const opt2 = document.createElement('option');
+    opt2.value = h; opt2.textContent = h;
+    if (h.toLowerCase().includes('rain') || h.toLowerCase().includes('chuva') || h.toLowerCase().includes('precip') || h.toLowerCase().includes('mm') || h === headers[1] || (!h.toLowerCase().includes('time') && !h.toLowerCase().includes('date') && !h.toLowerCase().includes('timestamp'))) {
+      if (!h.toLowerCase().includes('time') && !h.toLowerCase().includes('date') && !h.toLowerCase().includes('timestamp')) {
+        opt2.selected = true;
+      }
+    }
+    rainSel.appendChild(opt2);
+  });
+  colSelector.hidden = false;
+
+  // Re-parse when selection changes
+  timeSel.onchange = () => reparseFromRaw();
+  rainSel.onchange = () => reparseFromRaw();
+
+  // Parse with auto-detected columns
+  const tc = timeSel.value;
+  const rc = rainSel.value;
+  const tIdx = headers.indexOf(tc);
+  const rIdx = headers.indexOf(rc);
+  if (tIdx >= 0 && rIdx >= 0) {
+    const values = state._rawRows.map(row => ({ t: row[tIdx], v: parseFloat(row[rIdx]) })).filter(r => !isNaN(r.v));
+    const ts1 = new Date(values[0]?.t);
+    const ts2 = new Date(values[1]?.t);
+    const inferredInterval = (!isNaN(ts1) && !isNaN(ts2)) ? Math.round((ts2 - ts1) / 60000) || 60 : 60;
+    interval.value = inferredInterval;
+    showPreview(values.slice(0, 10));
+    state.data = { values, interval: inferredInterval };
+    btnCalib.disabled = false;
+    drawInputChart(values, inferredInterval);
+    notify(`Loaded ${values.length} data points`);
+  }
+}
+
+function reparseFromRaw() {
+  if (!state._rawHeaders || !state._rawRows) return;
+  const tc = timeCol.value;
+  const rc = rainCol.value;
+  const tIdx = state._rawHeaders.indexOf(tc);
+  const rIdx = state._rawHeaders.indexOf(rc);
+  if (tIdx < 0 || rIdx < 0) return notify('Select both columns');
+  const values = state._rawRows.map(row => ({ t: row[tIdx], v: parseFloat(row[rIdx]) })).filter(r => !isNaN(r.v));
+  const ts1 = new Date(values[0]?.t);
+  const ts2 = new Date(values[1]?.t);
+  const inferredInterval = (!isNaN(ts1) && !isNaN(ts2)) ? Math.round((ts2 - ts1) / 60000) || 60 : 60;
+  interval.value = inferredInterval;
+  showPreview(values.slice(0, 10));
+  state.data = { values, interval: inferredInterval };
+  btnCalib.disabled = false;
+  drawInputChart(values, inferredInterval);
+  notify(`Loaded ${values.length} data points`);
 }
 
 function parseAndSetData(text, intervalMin) {
